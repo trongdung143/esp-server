@@ -13,7 +13,7 @@ class BaseAgent:
     def __init__(
         self,
         agent_name: str,
-        state: type[State] = State,
+        state: type[State] = State | None,
         tools: Sequence[BaseTool] | None = None,
     ):
 
@@ -36,3 +36,6 @@ class BaseAgent:
 
     def get_subgraph(self) -> CompiledStateGraph:
         return self._sub_graph.compile(name=self._agent_name)
+
+    def get_model(self):
+        return self._model

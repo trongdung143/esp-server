@@ -1,5 +1,6 @@
 from fastapi import WebSocket
 from src.db.operation import ClientRedis
+import os
 
 
 class WebSocketManager:
@@ -40,6 +41,10 @@ class WebSocketManager:
         if data["type"] == "websocket.disconnect":
             self._remove_client(client_id)
             await redis.clear_all_data()
+            if os.path.exists(f"src/data/music/{client_id}.mp3"):
+                os.remove(f"src/data/music/{client_id}.mp3")
+            if os.path.exists(f"src/data/pdf/{client_id}.pdf"):
+                os.remove(f"src/data/pdf/{client_id}.pdf")
             return "disconnect"
 
 

@@ -61,14 +61,3 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
 
     finally:
         print(f"Closed connection for {client_id}")
-
-
-@router.get("/stream_music")
-async def stream_music_ep(client_id: str):
-    file_path = f"src/data/music/{client_id}.mp3"
-    return StreamingResponse(stream_music(file_path), media_type="audio/mpeg")
-
-
-@router.get("/stream_chat")
-async def stream_chat_ep(client_id: str):
-    return StreamingResponse(stream_chat(client_id), media_type="audio/mpeg")

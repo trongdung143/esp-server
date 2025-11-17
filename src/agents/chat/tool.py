@@ -1,7 +1,17 @@
-from src.agents.utils import find_music, download_audio, remove_vietnamese_accents
+from src.agents.utils import (
+    find_music,
+    download_audio,
+    remove_vietnamese_accents,
+    sreacher,
+    download_pdf,
+    read_content,
+    logger,
+)
 from langchain.tools import tool, ToolRuntime
 from datetime import datetime
 from src.db.operation import ClientRedis
+from src.agents.base import BaseAgent
+from src.agents.chat.prompt import prompt_rag
 
 
 @tool
@@ -23,6 +33,31 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     writer(f"music_name:{remove_vietnamese_accents(title)}")
     writer("stream_music")
     return f"đã mở"
+
+
+@tool
+async def play_yt(query: str, runtime: ToolRuntime) -> str:
+    """
+    Phát bất kỳ audio YouTube nào dựa trên tên yêu cầu.
+
+    Args:
+        query (str): Tên yêu cầu video nội dung.
+
+    """
+    writer = runtime.stream_writer
+    client_id = runtime.state.get("client_id")
+
+    writer("Đang tìm kiếm")
+    title, url = await find_music(query)
+
+    writer("Đang chuẩn bị phát")
+    await download_audio(url, client_id)
+
+    writer(f"Chuẩn bị mở '{title}' sau 3 giây")
+    writer(f"video_name:{remove_vietnamese_accents(title)}")
+    writer("stream_music")
+
+    return "Đã mở"
 
 
 @tool
@@ -65,13 +100,22 @@ async def sreach(query: str, runtime: ToolRuntime) -> str:
     Dùng để tìm kiếm thông tin, tin tức mới.
 
     Args:
-        query (str): nội dung cần tìm kiếm
+        query (str): Nội dung cần tìm kiếm
 
     Returns:
         str: Nội dung tìm kiếm được.
     """
 
-    return ""
+    writer = runtime.stream_writer
+    writer("đang tìm kiếm thông tin")
+    response = await sreacher.search(
+        query=query, include_raw_content="text", max_results=3
+    )
+    results = response.get("results")
+    content = ""
+    for result in results:
+        content += result.get("content") + "\n\n"
+    return content
 
 
 @tool
@@ -97,4 +141,36 @@ async def set_volume(volume: str, runtime: ToolRuntime) -> str:
         return "đã nói nhỏ hơn."
 
 
-tools = [get_time, play_music, set_volume]
+@tool
+async def rag(query: str, runtime: ToolRuntime) -> str:
+    """
+    Dùng để lấy thông tin từ tệp pdf có sẵn.
+
+    Args:
+        query (str): Thông tin cần hỏi.
+
+    Returns:
+        Nội dung trả.
+    """
+    response = None
+    try:
+        client_id = runtime.state.get("client_id")
+        writer = runtime.stream_writer
+        agent = BaseAgent("rag", None, None)
+        chain = prompt_rag | agent.get_model()
+        writer("đang lấy tài liệu")
+        path = await download_pdf(client_id)
+        writer("đang đọc tài liệu")
+        context = await read_content(path, query)
+        writer("chờ một chút tôi đang đọc tài liệu")
+        response = await chain.ainvoke({"query": query, "context": context})
+        return response.content
+    except Exception as e:
+        logger.exception("[RagAgent] Exception occurred")
+    finally:
+        logger.info("[RagAgent]")
+
+    return "Không tìm thấy tài liệu."
+
+
+tools = [get_time, play_music, set_volume, play_yt, rag, sreach]

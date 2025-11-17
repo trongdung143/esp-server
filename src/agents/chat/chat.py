@@ -36,9 +36,9 @@ class ChatAgent(BaseAgent):
             output = response.content
             state.update(messages=[response], output=output)
         except Exception as e:
-            logger.exception("[Chat] Exception occurred")
+            logger.exception("[ChatAgent] Exception occurred")
         else:
-            logger.info("[Chat] process executed successfully")
+            logger.info("[ChatAgent]")
         return state
 
     def route(self) -> str:
@@ -61,6 +61,6 @@ class ChatAgent(BaseAgent):
             output = response.get("output", "")
             state.update(messages=[AIMessage(content=output)])
         except Exception as e:
-            logger.exception("[Chat] Exception occurred")
+            logger.exception("[ChatAgent] Exception occurred")
 
         return state

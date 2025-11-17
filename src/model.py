@@ -1,17 +1,23 @@
 from faster_whisper import WhisperModel
 import os
 import shutil
+from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
+from src.config.setup import GOOGLE_API_KEY
 
 model_name = "small"
-
 download_root = f"src/models/faster-whisper-{model_name}"
 
+stt_model = None
+embedding_model = GoogleGenerativeAIEmbeddings(
+    model="models/gemini-embedding-001", google_api_key=GOOGLE_API_KEY
+)
+
 try:
-    model = WhisperModel(
+    stt_model = WhisperModel(
         download_root, device="cpu", compute_type="int8", local_files_only=True
     )
 except:
-    model = WhisperModel(
+    stt_model = WhisperModel(
         model_name,
         device="cpu",
         compute_type="int8",
@@ -37,6 +43,6 @@ except:
         else:
             shutil.copy2(s, d)
 finally:
-    model = WhisperModel(
+    stt_model = WhisperModel(
         download_root, device="cpu", compute_type="int8", local_files_only=True
     )

@@ -18,3 +18,7 @@ redis
 langsmith
 python-dotenv
 huggingface_hub[hf_xet]
+psycopg2
+supabase
+faiss-cpu
+pypdf

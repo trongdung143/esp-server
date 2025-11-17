@@ -1,18 +1,24 @@
 import re
 import logging
 import asyncio
-import edge_tts
 import re
 from yt_dlp import YoutubeDL
 import os
 import socket
-from yt_dlp import YoutubeDL
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
-import re
-import os
 from src.config.setup import GOOGLE_API_KEY
 import unicodedata
+from tavily import AsyncTavilyClient
+from src.config.setup import TAVILY_API_KEY
+from src.db.connection import get_supabase
+from langchain_community.vectorstores import FAISS
+from src.model import embedding_model
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
+sreacher = AsyncTavilyClient(api_key=TAVILY_API_KEY)
 
 import logging
 
@@ -104,3 +110,50 @@ async def download_audio(url: str, client_id: str, bitrate: str = "128") -> str:
 
     await asyncio.to_thread(_download)
     return save_path
+
+
+async def download_pdf(client_id: str) -> str:
+    """
+    Tải file pdf từ supabase và trả về đường dẫn trong thư mục local.
+    """
+    path = f"src/data/pdf/{client_id}.pdf"
+    if os.path.exists(path):
+        return path
+    supabase = await get_supabase()
+    with open(path, "wb+") as f:
+        response = await supabase.storage.from_("pdf_data").download(
+            f"public/{client_id}.pdf"
+        )
+        f.write(response)
+
+    return path
+
+
+async def read_content(path: str, query: str) -> str:
+    """
+    Đưa file pdf vào embedding và trả về nội dung cần theo query.
+    """
+    loader = PyPDFLoader(path)
+    documents = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=500, chunk_overlap=100
+    )
+    documents_splits = text_splitter.split_documents(documents)
+
+    vectorstore = await FAISS.afrom_documents(
+        documents=documents_splits,
+        embedding=embedding_model,
+    )
+
+    retriever = vectorstore.as_retriever(
+        search_type="similarity", search_kwargs={"k": 3}
+    )
+
+    response = await retriever.ainvoke(query)
+
+    content = ""
+
+    for doc in response:
+        content += doc.page_content + "\n\n"
+
+    return content

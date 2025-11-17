@@ -17,3 +17,30 @@ prompt_chat = ChatPromptTemplate.from_messages(
         ("placeholder", "{messages}"),
     ]
 )
+
+
+prompt_rag = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+            Bạn là một trợ lý chuyên trả lời câu hỏi.
+            Sử dụng thông tin trong phần context để trả lời chính xác và ngắn gọn.
+            Nếu bạn không biết câu trả lời, hãy nói "Tôi không biết".
+            Giữ câu trả lời trong vòng ba câu.
+            """,
+        ),
+        (
+            "human",
+            """
+            Câu hỏi:
+            {query}
+
+            Ngữ cảnh:
+            {context}
+
+            Câu trả lời:
+            """,
+        ),
+    ]
+)

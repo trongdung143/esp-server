@@ -7,7 +7,7 @@ from src.db.operation import ClientRedis
 import os
 import asyncio
 from langchain_core.messages import AIMessageChunk
-from src.stt_model import model as stt_model
+from src.model import stt_model
 from src.ws_manager import ws_client
 
 
@@ -51,6 +51,7 @@ async def stream_chat(client_id: str):
             continue
 
         message = clean_txt(message)
+        print("TTS ", message)
         voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
         results.append(None)
         tts_tasks.append(
@@ -152,7 +153,8 @@ async def stream_message(graph, input_state, config, client_id):
         if subgraph:
             if data_type == "messages":
                 response, meta = chunk
-                if isinstance(response, AIMessageChunk):
+                langgraph_node = meta.get("langgraph_node")
+                if langgraph_node != "tools" and isinstance(response, AIMessageChunk):
                     text = response.content
                     if isinstance(text, list):
                         if response.content:
@@ -174,6 +176,9 @@ async def stream_message(graph, input_state, config, client_id):
                 elif chunk.strip().startswith("music_name"):
                     music_name = chunk.strip().split(":")[1]
                     await ws_client.send_text(client_id, f"music_name:{music_name}")
+                elif chunk.strip().startswith("video_name"):
+                    video_name = chunk.strip().split(":")[1]
+                    await ws_client.send_text(client_id, f"music_name:{video_name}")
                 else:
                     await redis.push_queue("messages", chunk)
             elif data_type == "updates":
@@ -182,7 +187,7 @@ async def stream_message(graph, input_state, config, client_id):
     await redis.push_queue("messages", "__END__")
     print("Finished streaming TTS")
     if music == True:
-        await asyncio.sleep(6)
+        await asyncio.sleep(7)
         print("Started streaming music")
         await ws_client.send_text(client_id, "stream_music")
 
