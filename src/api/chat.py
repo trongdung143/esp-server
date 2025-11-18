@@ -37,7 +37,7 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
 
                 elif msg == "end_chat":
                     print(f"End from {client_id}")
-                    text = await stt_from_pcm(pcm_buffer)
+                    text = await stt_from_pcm(client_id, pcm_buffer)
                     input_state = {
                         "client_id": client_id,
                         "messages": HumanMessage(content=text),

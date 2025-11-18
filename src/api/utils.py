@@ -1,14 +1,14 @@
 import edge_tts
 import soundfile as sf
-import io
 import re
 import numpy as np
 from src.db.operation import ClientRedis
 import os
 import asyncio
 from langchain_core.messages import AIMessageChunk
-from src.model import stt_model
 from src.ws_manager import ws_client
+import httpx
+from src.config.setup import STT_URL
 
 
 def clean_txt(txt: str) -> str:
@@ -51,7 +51,7 @@ async def stream_chat(client_id: str):
             continue
 
         message = clean_txt(message)
-        print("TTS ", message)
+        print("TTS: ", message)
         voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
         results.append(None)
         tts_tasks.append(
@@ -88,30 +88,39 @@ async def stream_chat(client_id: str):
                 yield chunk["data"]
 
 
-async def pcm_to_wav_bytes(pcm_buffer: bytearray, sample_rate: int = 16000) -> bytes:
+async def pcm_to_wav_bytes(
+    client_id: str, pcm_buffer: bytearray, sample_rate: int = 16000
+) -> str:
+    path = f"src/data/audio_message/{client_id}.wav"
     if not pcm_buffer:
         print("Empty buffer, skipping.")
-        return b""
+        return ""
 
     audio = np.frombuffer(pcm_buffer, dtype=np.int16)
-    wav_buf = io.BytesIO()
-    sf.write(wav_buf, audio, sample_rate, format="WAV")
-    wav_buf.seek(0)
-    return wav_buf.read()
+
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(
+        None, lambda: sf.write(path, audio, sample_rate, format="WAV")
+    )
+    return path
 
 
-async def stt_from_pcm(pcm_buffer: bytearray, sample_rate: int = 16000) -> str:
+async def stt_from_pcm(
+    client_id: str, pcm_buffer: bytearray, sample_rate: int = 16000
+) -> str:
     if not pcm_buffer:
         print("Empty audio buffer")
         return ""
-
-    wav_bytes = await pcm_to_wav_bytes(pcm_buffer, sample_rate)
-    wav_buf = io.BytesIO(wav_bytes)
-    segments, _ = stt_model.transcribe(wav_buf, language="vi")
-    text = "".join([s.text for s in segments])
-
-    print(f"USER: {text.strip()}")
-    return text.strip()
+    path = await pcm_to_wav_bytes(client_id, pcm_buffer)
+    async with httpx.AsyncClient() as client:
+        with open(path, "rb") as f:
+            files = {"file": (f.name, f, "audio/wav")}
+            r = await client.post(STT_URL, files=files)
+    message = r.json()["text"]
+    print(f"USER: {message}")
+    if os.path.exists(path):
+        os.remove(path)
+    return message
 
 
 async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
