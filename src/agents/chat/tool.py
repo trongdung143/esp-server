@@ -1,17 +1,18 @@
-from src.agents.utils import (
+from langchain.tools import tool, ToolRuntime
+from datetime import datetime
+
+from src.db.redis_operation import ClientRedis
+from src.agents.base import BaseAgent
+from src.agents.chat.prompt import prompt_rag
+from src.agents.chat.utils import (
     find_music,
     download_audio,
     remove_vietnamese_accents,
     sreacher,
-    download_pdf,
     read_content,
-    logger,
 )
-from langchain.tools import tool, ToolRuntime
-from datetime import datetime
-from src.db.operation import ClientRedis
-from src.agents.base import BaseAgent
-from src.agents.chat.prompt import prompt_rag
+from src.log import logger
+from src.db.supabase_operation import ClientSupaBase
 
 
 @tool
@@ -25,10 +26,13 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     """
     writer = runtime.stream_writer
     client_id = runtime.state.get("client_id")
+
     writer("đang tìm nhạc")
     title, url = await find_music(music_name)
+
     writer("đang chuẩn bị phát nhạc")
     await download_audio(url, client_id)
+
     writer(f"chuẩn bị mở {title} sau 3 giây")
     writer(f"music_name:{remove_vietnamese_accents(title)}")
     writer("stream_music")
@@ -85,6 +89,7 @@ async def set_speaking_speed(speed: str, runtime: ToolRuntime) -> str:
     """
     client_id = runtime.state.get("client_id")
     redis = ClientRedis(client_id)
+
     speed_val = await redis.get_speaking_speed()
     if speed.strip() == "up":
         await redis.set_speaking_speed(int(speed_val + 30))
@@ -107,12 +112,14 @@ async def sreach(query: str, runtime: ToolRuntime) -> str:
     """
 
     writer = runtime.stream_writer
+
     writer("đang tìm kiếm thông tin")
     response = await sreacher.search(
         query=query, include_raw_content="text", max_results=3
     )
     results = response.get("results")
     content = ""
+
     for result in results:
         content += result.get("content") + "\n\n"
     return content
@@ -130,6 +137,7 @@ async def set_volume(volume: str, runtime: ToolRuntime) -> str:
     client_id = runtime.state.get("client_id")
     writer = runtime.stream_writer
     redis = ClientRedis(client_id)
+
     volume_val = await redis.get_volume()
     if volume.strip() == "up":
         await redis.set_volume(volume_val + 5)
@@ -152,25 +160,33 @@ async def rag(query: str, runtime: ToolRuntime) -> str:
     Returns:
         Nội dung trả.
     """
-    response = None
-    try:
-        client_id = runtime.state.get("client_id")
-        writer = runtime.stream_writer
-        agent = BaseAgent("rag", None, None)
-        chain = prompt_rag | agent.get_model()
-        writer("đang lấy tài liệu")
-        path = await download_pdf(client_id)
-        writer("đang đọc tài liệu")
-        context = await read_content(path, query)
-        writer("chờ một chút tôi đang đọc tài liệu")
-        response = await chain.ainvoke({"query": query, "context": context})
-        return response.content
-    except Exception as e:
-        logger.exception("[RagAgent] Exception occurred")
-    finally:
-        logger.info("[RagAgent]")
 
-    return "Không tìm thấy tài liệu."
+    client_id = runtime.state.get("client_id")
+    supabase = ClientSupaBase(client_id)
+    writer = runtime.stream_writer
+    agent = BaseAgent("rag", None, None)
+    chain = prompt_rag | agent.get_model()
+
+    writer("đang lấy tài liệu")
+    path = supabase.download_pdf()
+
+    if path is None:
+        writer("đã có lỗi khi lấy tài liệu")
+        return "đã có lỗi"
+
+    writer("đang đọc tài liệu")
+    context = await read_content(path, query)
+    if context is None:
+        writer("đã có lỗi khi đọc tài liệu")
+        return "đã có lỗi"
+
+    writer("chờ một chút tôi đang đọc tài liệu")
+    try:
+        response = await chain.ainvoke({"query": query, "context": context})
+    except:
+        logger.exception("[RagAgent] Exception occurred")
+        return "đã có lỗi"
+    return response.content
 
 
 tools = [get_time, play_music, set_volume, play_yt, rag, sreach]

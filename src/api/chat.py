@@ -1,17 +1,11 @@
-from fastapi import APIRouter, WebSocket, HTTPException, Query
-from src.api.utils import stt_from_pcm, stream_chat, stream_message, stream_music
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, WebSocket, Query
 from langchain_core.messages import HumanMessage
+
+from src.api.utils import stt_from_pcm, stream_message
 from src.agents.workflow import graph
-from src.db.operation import ClientRedis
 from src.ws_manager import ws_client
 
 router = APIRouter()
-
-
-@router.get("/")
-async def home():
-    return {"message": "hello"}
 
 
 @router.websocket("/chat")

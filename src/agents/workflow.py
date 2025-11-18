@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph
-from src.agents.state import State
 from langgraph.checkpoint.memory import MemorySaver
+
+from src.agents.state import State
 from src.agents.chat.chat import ChatAgent
 
 VALID_AGENTS = ["chat"]

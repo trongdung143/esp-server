@@ -1,6 +1,8 @@
-from fastapi import WebSocket
-from src.db.operation import ClientRedis
 import os
+
+
+from fastapi import WebSocket
+from src.db.redis_operation import ClientRedis
 
 
 class WebSocketManager:

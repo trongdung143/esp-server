@@ -1,14 +1,26 @@
-import edge_tts
-import soundfile as sf
 import re
-import numpy as np
-from src.db.operation import ClientRedis
 import os
+import itertools
+
+
+import httpx
 import asyncio
 from langchain_core.messages import AIMessageChunk
+import numpy as np
+import edge_tts
+import soundfile as sf
+
+from src.db.redis_operation import ClientRedis
 from src.ws_manager import ws_client
-import httpx
-from src.config.setup import STT_URL
+from src.config.setup import STT_01_URL, STT_02_URL
+
+STT_SERVERS = [
+    STT_01_URL,
+    STT_02_URL,
+]
+
+STT_ITER = itertools.cycle(STT_SERVERS)
+STT_LOCK = asyncio.Lock()
 
 
 def clean_txt(txt: str) -> str:
@@ -21,8 +33,7 @@ def clean_txt(txt: str) -> str:
 
 
 async def tts_task(idx, message, voice, speed, output_queue):
-    if idx != 0:
-        await asyncio.sleep(0.2)
+    await asyncio.sleep(idx * 0.3)
     buff = []
     communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
     async for chunk in communicate.stream():
@@ -91,6 +102,12 @@ async def stream_chat(client_id: str):
 async def pcm_to_wav_bytes(
     client_id: str, pcm_buffer: bytearray, sample_rate: int = 16000
 ) -> str:
+    """
+    Chuyển thành file wav và lưu file.
+
+    Returns:
+        Trả về đường dẫn file wav.
+    """
     path = f"src/data/audio_message/{client_id}.wav"
     if not pcm_buffer:
         print("Empty buffer, skipping.")
@@ -111,11 +128,16 @@ async def stt_from_pcm(
     if not pcm_buffer:
         print("Empty audio buffer")
         return ""
+
+    async with STT_LOCK:
+        STT_URL = next(STT_ITER)
+
     path = await pcm_to_wav_bytes(client_id, pcm_buffer)
     async with httpx.AsyncClient() as client:
         with open(path, "rb") as f:
             files = {"file": (f.name, f, "audio/wav")}
             r = await client.post(STT_URL, files=files)
+
     message = r.json()["text"]
     print(f"USER: {message}")
     if os.path.exists(path):
@@ -125,8 +147,7 @@ async def stt_from_pcm(
 
 async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
     """
-    Tách buffer_text thành từng câu, push vào Redis queue,
-    và trả về phần còn lại chưa được push.
+    Tách buffer_text thành từng câu, push vào Redis queue và trả về phần còn lại chưa được push.
     """
     pattern = re.compile(r"[^.?!,]*[.?!,]")
     matches = pattern.findall(buffer_text)
@@ -203,8 +224,7 @@ async def stream_message(graph, input_state, config, client_id):
 
 async def stream_music(file_path: str, chunk_size: int = 2024):
     """
-    Stream file mp3 theo chunk bất đồng bộ.
-    Xóa file sau khi gửi xong.
+    Stream file mp3 theo chunk bất đồng bộ và xóa file sau khi stream xong.
     """
     try:
         with open(file_path, "rb") as f:

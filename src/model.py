@@ -1,7 +1,9 @@
-from faster_whisper import WhisperModel
 import os
 import shutil
+
+from faster_whisper import WhisperModel
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
+
 from src.config.setup import GOOGLE_API_KEY
 
 embedding_model = GoogleGenerativeAIEmbeddings(

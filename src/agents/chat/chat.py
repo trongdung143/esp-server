@@ -1,8 +1,9 @@
 from src.agents.chat.prompt import prompt_chat
 from src.agents.state import State
-from src.agents.utils import logger
+from src.log import logger
 from src.agents.base import BaseAgent
 from src.agents.chat.tool import tools
+
 from langgraph.prebuilt.tool_node import tools_condition, ToolNode
 from langchain_core.messages import AIMessage
 from langsmith import traceable

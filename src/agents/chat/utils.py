@@ -1,38 +1,22 @@
-import re
-import logging
 import asyncio
-import re
-from yt_dlp import YoutubeDL
 import os
+import re
 import socket
+import unicodedata
+
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
-from src.config.setup import GOOGLE_API_KEY
-import unicodedata
-from tavily import AsyncTavilyClient
-from src.config.setup import TAVILY_API_KEY
-from src.db.connection import get_supabase
+from yt_dlp import YoutubeDL
 from langchain_community.vectorstores import FAISS
-from src.model import embedding_model
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from tavily import AsyncTavilyClient
 
+from src.config.setup import GOOGLE_API_KEY, TAVILY_API_KEY
+from src.model import embedding_model
+from src.log import logger
 
 sreacher = AsyncTavilyClient(api_key=TAVILY_API_KEY)
-
-import logging
-
-logger = logging.getLogger("chat_logger")
-logger.setLevel(logging.INFO)
-
-if not logger.handlers:
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
-    )
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
 
 
 def remove_vietnamese_accents(text):
@@ -112,48 +96,33 @@ async def download_audio(url: str, client_id: str, bitrate: str = "128") -> str:
     return save_path
 
 
-async def download_pdf(client_id: str) -> str:
-    """
-    Tải file pdf từ supabase và trả về đường dẫn trong thư mục local.
-    """
-    path = f"src/data/pdf/{client_id}.pdf"
-    if os.path.exists(path):
-        return path
-    supabase = await get_supabase()
-    with open(path, "wb+") as f:
-        response = await supabase.storage.from_("pdf_data").download(
-            f"public/{client_id}.pdf"
-        )
-        f.write(response)
-
-    return path
-
-
-async def read_content(path: str, query: str) -> str:
+async def read_content(path: str, query: str) -> str | None:
     """
     Đưa file pdf vào embedding và trả về nội dung cần theo query.
     """
-    loader = PyPDFLoader(path)
-    documents = loader.load()
-    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=500, chunk_overlap=100
-    )
-    documents_splits = text_splitter.split_documents(documents)
-
-    vectorstore = await FAISS.afrom_documents(
-        documents=documents_splits,
-        embedding=embedding_model,
-    )
-
-    retriever = vectorstore.as_retriever(
-        search_type="similarity", search_kwargs={"k": 3}
-    )
-
-    response = await retriever.ainvoke(query)
-
     content = ""
+    try:
+        loader = PyPDFLoader(path)
+        documents = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=500, chunk_overlap=100
+        )
+        documents_splits = text_splitter.split_documents(documents)
 
-    for doc in response:
-        content += doc.page_content + "\n\n"
+        vectorstore = await FAISS.afrom_documents(
+            documents=documents_splits,
+            embedding=embedding_model,
+        )
 
+        retriever = vectorstore.as_retriever(
+            search_type="similarity", search_kwargs={"k": 3}
+        )
+
+        response = await retriever.ainvoke(query)
+
+        for doc in response:
+            content += doc.page_content + "\n\n"
+    except:
+        logger.exception("đã có lỗi khi đọc tài liệu")
+        return None
     return content

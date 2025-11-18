@@ -2,7 +2,7 @@ from typing import Sequence
 
 from langchain_core.tools.base import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.agents.state import State
