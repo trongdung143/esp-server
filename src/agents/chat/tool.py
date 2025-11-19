@@ -201,6 +201,8 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
     writer("đang tìm tài liệu")
     supabase = ClientSupaBase(client_id)
     summaries = await supabase.get_list_summary_pdf()
+    if summaries == []:
+        return "chưa có tài liệu nào được tải lên"
     content = ""
     for item in summaries:
         pdf_id = item.get("pdf_id")
