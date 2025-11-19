@@ -4,6 +4,7 @@ from langchain_core.messages import HumanMessage
 from src.api.utils import stt_from_pcm, stream_message
 from src.agents.workflow import graph
 from src.ws_manager import ws_client
+from src.log import logger
 
 router = APIRouter()
 
@@ -50,8 +51,8 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                 chunk = data["bytes"]
                 pcm_buffer.extend(chunk)
 
-    except Exception as e:
-        print(f"Error: {e}")
+    except RuntimeError as e:
+        pass
 
     finally:
-        print(f"Closed connection for {client_id}")
+        logger.info(f"Closed connection for {client_id}")
