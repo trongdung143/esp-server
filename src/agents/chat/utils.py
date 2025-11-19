@@ -104,6 +104,7 @@ async def read_content(path: str, query: str) -> str | None:
     try:
         loader = PyPDFLoader(path)
         documents = loader.load()
+
         text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
             chunk_size=500, chunk_overlap=100
         )
@@ -122,6 +123,10 @@ async def read_content(path: str, query: str) -> str | None:
 
         for doc in response:
             content += doc.page_content + "\n\n"
+
+        if os.path.exists(path):
+            os.remove(path)
+
     except:
         logger.exception("đã có lỗi khi đọc tài liệu")
         return None

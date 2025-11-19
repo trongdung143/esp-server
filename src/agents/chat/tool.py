@@ -150,12 +150,13 @@ async def set_volume(volume: str, runtime: ToolRuntime) -> str:
 
 
 @tool
-async def rag(query: str, runtime: ToolRuntime) -> str:
+async def rag(query: str, pdf_id: str, runtime: ToolRuntime) -> str:
     """
     Dùng để lấy thông tin từ tệp pdf có sẵn.
 
     Args:
         query (str): Thông tin cần hỏi.
+        pdf_id (str): Id của file pdf cần lấy thông tin.
 
     Returns:
         Nội dung trả.
@@ -167,20 +168,18 @@ async def rag(query: str, runtime: ToolRuntime) -> str:
     agent = BaseAgent("rag", None, None)
     chain = prompt_rag | agent.get_model()
 
-    writer("đang lấy tài liệu")
-    path = supabase.download_pdf()
+    path = await supabase.download_pdf(pdf_id)
 
     if path is None:
         writer("đã có lỗi khi lấy tài liệu")
         return "đã có lỗi"
 
-    writer("đang đọc tài liệu")
     context = await read_content(path, query)
     if context is None:
         writer("đã có lỗi khi đọc tài liệu")
         return "đã có lỗi"
 
-    writer("chờ một chút tôi đang đọc tài liệu")
+    writer("đang đọc tài liệu")
     try:
         response = await chain.ainvoke({"query": query, "context": context})
     except:
@@ -189,4 +188,27 @@ async def rag(query: str, runtime: ToolRuntime) -> str:
     return response.content
 
 
-tools = [get_time, play_music, set_volume, play_yt, rag, sreach]
+@tool
+async def get_list_summary_pdf(runtime: ToolRuntime):
+    """
+    Dùng để xem nội dung tóm tắt các file pdf trước khi chọn file dùng để xử lý yêu cầu của người.
+
+    Returns:
+        str: Nội dung tóm tắt các file pdf, id của file ở đầu mỗi tóm tắt và thời gian tải file lên.
+    """
+    client_id = runtime.state.get("client_id")
+    writer = runtime.stream_writer
+    writer("đang tìm tài liệu")
+    supabase = ClientSupaBase(client_id)
+    summaries = await supabase.get_list_summary_pdf()
+    content = ""
+    for item in summaries:
+        pdf_id = item.get("pdf_id")
+        summary = item.get("summary")
+        time = pdf_id.split("_")
+        str_time = f"thời gian file được tải lên: {time[2]} giờ {time[1]} phút ngày {time[3]}-{time[4]}-{time[5]}\n"
+        content += f"id: {pdf_id}\n{str_time}tóm tắt: {summary}\n\n"
+    return content
+
+
+tools = [get_time, play_music, set_volume, play_yt, rag, sreach, get_list_summary_pdf]

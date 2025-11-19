@@ -1,6 +1,6 @@
 from fastapi import APIRouter
+from src.db.supabase_operation import ClientSupaBase
 from fastapi.responses import PlainTextResponse
-
 
 router = APIRouter()
 
@@ -12,4 +12,9 @@ async def home():
 
 @router.get("/handshake")
 async def handshake(client_id: str):
-    return {"type": "true"}
+    supabase = ClientSupaBase(client_id)
+    exists = await supabase.is_client_exists()
+    if not exists:
+        await supabase.add_client()
+        return PlainTextResponse("false")
+    return PlainTextResponse("true")

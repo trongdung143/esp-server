@@ -1,7 +1,8 @@
 import re
 import os
 import itertools
-
+import os
+import random
 
 import httpx
 import asyncio
@@ -42,6 +43,29 @@ async def tts_task(idx, message, voice, speed, output_queue):
     await output_queue.put((idx, buff))
 
 
+async def audio_init(chunk_size: int = 1024):
+    base_path = "src/data/audio_init"
+    file_paths = [
+        f"{base_path}/audio1.mp3",
+        f"{base_path}/audio2.mp3",
+        f"{base_path}/audio3.mp3",
+    ]
+
+    file_path = random.choice(file_paths)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} không tồn tại")
+
+    # Đọc file theo chunk
+    with open(file_path, "rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+            await asyncio.sleep(0)
+
+
 async def stream_chat(client_id: str):
     redis = ClientRedis(client_id)
     language = await redis.get_language()
@@ -52,6 +76,8 @@ async def stream_chat(client_id: str):
     printed = 0
     idx = 0
     tts_tasks = []
+
+    # asyncio.create_task(audio_init())
 
     while True:
         message = await redis.pop_queue("messages")
@@ -108,6 +134,7 @@ async def pcm_to_wav_bytes(
     Returns:
         Trả về đường dẫn file wav.
     """
+    os.makedirs("src/data/audio_message", exist_ok=True)
     path = f"src/data/audio_message/{client_id}.wav"
     if not pcm_buffer:
         print("Empty buffer, skipping.")
