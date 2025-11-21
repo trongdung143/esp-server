@@ -208,8 +208,8 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
         pdf_id = item.get("pdf_id")
         summary = item.get("summary")
         time = pdf_id.split("_")
-        str_time = f"thời gian file được tải lên: {time[2]} giờ {time[1]} phút ngày {time[3]}-{time[4]}-{time[5]}\n"
-        content += f"id: {pdf_id}\n{str_time}tóm tắt: {summary}\n\n"
+        str_time = f"thời gian file được tải lên: {time[2]} giờ {time[1]} phút ngày {time[3]}-{time[4]}-{time[5]}"
+        content += f"id: {pdf_id}\n{str_time}\ntóm tắt: {summary}\n\n"
     return content
 
 
