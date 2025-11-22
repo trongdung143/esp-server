@@ -33,6 +33,11 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                 elif msg == "end_chat":
                     print(f"End from {client_id}")
                     text = await stt_from_pcm(client_id, pcm_buffer)
+                    if (
+                        text
+                        == "Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn"
+                    ):
+                        text = "..."
                     input_state = {
                         "client_id": client_id,
                         "messages": HumanMessage(content=text),

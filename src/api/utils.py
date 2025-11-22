@@ -33,96 +33,39 @@ def clean_txt(txt: str) -> str:
     return txt
 
 
-async def tts_task(idx, message, voice, speed, output_queue):
-    await asyncio.sleep(idx * 0.3)
-    buff = []
-    communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            buff.append(chunk["data"])
-    await output_queue.put((idx, buff))
-
-
-async def audio_init(chunk_size: int = 1024):
-    base_path = "src/data/audio_init"
-    file_paths = [
-        f"{base_path}/audio1.mp3",
-        f"{base_path}/audio2.mp3",
-        f"{base_path}/audio3.mp3",
-    ]
-
-    file_path = random.choice(file_paths)
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"{file_path} không tồn tại")
-
-    # Đọc file theo chunk
-    with open(file_path, "rb") as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            yield chunk
-            await asyncio.sleep(0)
-
-
 async def stream_chat(client_id: str):
     redis = ClientRedis(client_id)
     language = await redis.get_language()
     speed_val = await redis.get_speaking_speed()
     speed = f"{speed_val-100:+d}%"
-    output_queue = asyncio.Queue()
-    results = []
-    printed = 0
-    idx = 0
-    tts_tasks = []
+    chunk_mp3_queue = asyncio.Queue()
 
-    # asyncio.create_task(audio_init())
+    async def producer():
+        while True:
+            message = await redis.pop_queue("messages")
+            if message == "__END__":
+                await chunk_mp3_queue.put(None)
+                break
+            if not message:
+                await asyncio.sleep(0.05)
+                continue
+
+            message = clean_txt(message)
+
+            print("TTS: ", message)
+            voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
+            communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    await chunk_mp3_queue.put(chunk["data"])
+
+    asyncio.create_task(producer())
 
     while True:
-        message = await redis.pop_queue("messages")
-        if message == "__END__":
+        chunk_mp3 = await chunk_mp3_queue.get()
+        if chunk_mp3 is None:
             break
-        if not message:
-            await asyncio.sleep(0.05)
-            continue
-
-        message = clean_txt(message)
-        print("TTS: ", message)
-        voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
-        results.append(None)
-        tts_tasks.append(
-            asyncio.create_task(tts_task(idx, message, voice, speed, output_queue))
-        )
-        idx += 1
-        while not output_queue.empty():
-            task_idx, buff = await output_queue.get()
-            results[task_idx] = buff
-            while printed < len(results) and results[printed] is not None:
-                for c in results[printed]:
-                    yield c
-                    await asyncio.sleep(0.05)
-                printed += 1
-
-    await asyncio.gather(*tts_tasks)
-
-    while printed < len(results):
-        task_idx, buff = await output_queue.get()
-        results[task_idx] = buff
-        while printed < len(results) and results[printed] is not None:
-            for c in results[printed]:
-                yield c
-                await asyncio.sleep(0)
-            printed += 1
-
-    if idx == 0:
-        voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
-        communicate = edge_tts.Communicate(
-            "tôi không hiểu bạn đang nói gì", voice, volume="+0%", rate=speed
-        )
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                yield chunk["data"]
+        yield chunk_mp3
 
 
 async def pcm_to_wav_bytes(

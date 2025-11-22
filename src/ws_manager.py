@@ -39,9 +39,9 @@ class WebSocketManager:
         try:
             redis = ClientRedis(client_id)
             await self._add_client(client_id, ws)
-            await redis.set_speaking_speed(int(130))
-            await redis.set_volume(15)
-            await self.send_text(client_id, "volume:15")
+            await redis.set_speaking_speed(int(120))
+            await redis.set_volume(10)
+            await self.send_text(client_id, "volume:10")
         except Exception as e:
             logger.exception(e)
 

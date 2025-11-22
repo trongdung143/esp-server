@@ -152,7 +152,7 @@ async def set_volume(volume: str, runtime: ToolRuntime) -> str:
 @tool
 async def rag(query: str, pdf_id: str, runtime: ToolRuntime) -> str:
     """
-    Dùng để lấy thông tin từ tệp pdf có sẵn.
+    Dùng để lấy thông tin từ tệp pdf có của người dùng.
 
     Args:
         query (str): Thông tin cần hỏi.
@@ -168,7 +168,7 @@ async def rag(query: str, pdf_id: str, runtime: ToolRuntime) -> str:
     agent = BaseAgent("rag", None, None)
     chain = prompt_rag | agent.get_model()
 
-    path = await supabase.download_pdf(pdf_id)
+    path = await supabase.download_pdf(pdf_id.strip())
 
     if path is None:
         writer("đã có lỗi khi lấy tài liệu")
@@ -208,8 +208,10 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
         pdf_id = item.get("pdf_id")
         summary = item.get("summary")
         time = pdf_id.split("_")
-        str_time = f"thời gian file được tải lên: {time[2]} giờ {time[1]} phút ngày {time[3]}-{time[4]}-{time[5]}"
-        content += f"id: {pdf_id}\n{str_time}\ntóm tắt: {summary}\n\n"
+        str_time = f"{time[2]} giờ {time[1]} phút ngày {time[3]}-{time[4]}-{time[5]}"
+        content += (
+            f"id: {pdf_id}\nthời gian tải lên: {str_time}\ntóm tắt: {summary}\n\n"
+        )
     return content
 
 
