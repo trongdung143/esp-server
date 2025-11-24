@@ -72,6 +72,7 @@ async def stt_from_pcm(
         "Hãy đăng ký kênh để xem những video mới nhất",
         "Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn",
         "Hãy đăng kí cho kênh lalaschool Để không bỏ lỡ những video hấp dẫn",
+        "Cảm ơn các bạn đã xem video hấp dẫn",
     ]
     if message in error_messages:
         return "..."

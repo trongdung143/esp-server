@@ -125,6 +125,8 @@ async def stream_message(graph, input_state, config, client_id):
             elif chunk.strip().startswith("video_name"):
                 video_name = chunk.strip().split(":")[1]
                 await ws_client.send_text(client_id, f"music_name:{video_name}")
+            elif chunk.strip().startswith("start_sleep"):
+                await ws_client.send_text(client_id, f"start_sleep")
             else:
                 await redis.push_queue("messages", chunk)
         elif data_type == "updates":

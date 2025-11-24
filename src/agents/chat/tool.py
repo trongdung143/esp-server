@@ -215,4 +215,24 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
     return content
 
 
-tools = [get_time, play_music, set_volume, play_yt, rag, sreach, get_list_summary_pdf]
+@tool
+async def set_sleep(runtime: ToolRuntime):
+    """Dùng để bật trạng thái ngủ."""
+    client_id = runtime.state.get("client_id")
+    redis = ClientRedis(client_id)
+    writer = runtime.stream_writer
+    writer("start_sleep")
+    await redis.set_is_sleep(True)
+    return "đã bật chế độ ngủ"
+
+
+tools = [
+    get_time,
+    play_music,
+    set_volume,
+    play_yt,
+    rag,
+    sreach,
+    get_list_summary_pdf,
+    set_sleep,
+]
