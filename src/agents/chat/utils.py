@@ -32,18 +32,6 @@ def force_ipv4():
     urllib3_cn.allowed_gai_family = allowed_gai_family
 
 
-def clean_txt(txt: str) -> str:
-    txt = (
-        txt.replace("\\n", " ").replace("\n", " ").replace("\t", " ").replace("\r", " ")
-    )
-
-    txt = re.sub(r"[^A-Za-zÀ-ỹ0-9\s]", " ", txt)
-
-    txt = re.sub(r"\s+", " ", txt).strip()
-
-    return txt
-
-
 async def find_music(music_name: str) -> tuple[str, str]:
     """
     Tìm video bài theo tên bài nhạc.

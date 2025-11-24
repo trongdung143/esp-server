@@ -1,6 +1,6 @@
 import logging
 
-logger = logging.getLogger("chat_logger")
+logger = logging.getLogger("log")
 logger.setLevel(logging.INFO)
 
 if not logger.handlers:

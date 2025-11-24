@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from src.api.utils import stream_chat, stream_music
+from src.api.utils.stream_chat import stream_chat
+from src.api.utils.stream_music import stream_music
 
 
 router = APIRouter()

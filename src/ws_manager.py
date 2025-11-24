@@ -38,12 +38,12 @@ class WebSocketManager:
     async def hello_server(self, client_id: str, ws: WebSocket):
         try:
             redis = ClientRedis(client_id)
+            volume = await redis.get_volume()
             await self._add_client(client_id, ws)
             await redis.set_speaking_speed(int(120))
-            await redis.set_volume(10)
             await redis.set_is_sleep(False)
             await redis.set_wake_word()
-            await self.send_text(client_id, "volume:10")
+            await self.send_text(client_id, f"volume:{volume}")
         except Exception as e:
             logger.exception(e)
 

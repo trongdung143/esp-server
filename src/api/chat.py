@@ -1,12 +1,19 @@
 from fastapi import APIRouter, WebSocket, Query
 from langchain_core.messages import HumanMessage
 
-from src.api.utils import stt_from_pcm, stream_message, set_sleep
+from src.api.utils.stt import stt_from_pcm
+from src.api.utils.stream_chat import stream_message, end_chat
+from src.db.redis_operation import ClientRedis
 from src.agents.workflow import graph
 from src.ws_manager import ws_client
 from src.log import logger
 
 router = APIRouter()
+
+
+async def set_sleep(client_id):
+    redis = ClientRedis(client_id)
+    await redis.set_is_sleep(True)
 
 
 @router.websocket("/chat")
@@ -19,28 +26,24 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
             data = await ws_client.get_data(client_id)
 
             if data == "disconnect":
-                print(f"Disconnected: {client_id}")
+                logger.info(f"Disconnected: {client_id}")
                 break
 
             if "text" in data:
                 msg = data["text"].strip()
 
                 if msg.startswith("start_chat"):
-                    print(f"Start from {client_id}")
+                    logger.info(f"Start from {client_id}")
                     pcm_buffer.clear()
                     continue
 
                 elif msg == "end_chat":
-                    print(f"End from {client_id}")
+                    logger.info(f"End from {client_id}")
                     text = await stt_from_pcm(client_id, pcm_buffer)
-                    if (
-                        text.strip()
-                        == "Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn"
-                        or text
-                        == "Hãy đăng kí cho kênh lalaschool Để không bỏ lỡ những video hấp dẫn"
-                    ):
-                        text = "..."
-                    print(f"USER: {text}")
+                    if text == "...":
+                        await end_chat(client_id)
+                        continue
+                    logger.info(f"USER: {text}")
                     input_state = {
                         "client_id": client_id,
                         "messages": HumanMessage(content=text),
@@ -55,7 +58,7 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                     pcm_buffer.clear()
                     continue
                 elif msg == "start_sleep":
-                    print(f"Start sleep from {client_id}")
+                    logger.info(f"Start sleep from {client_id}")
                     await set_sleep(client_id)
 
             elif "bytes" in data:

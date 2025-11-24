@@ -1,32 +1,14 @@
 import re
-import os
-import itertools
-import os
-import random
 
-import httpx
 import asyncio
 from langchain_core.messages import AIMessageChunk, AIMessage
-import numpy as np
+
 import edge_tts
-import soundfile as sf
+
 
 from src.db.redis_operation import ClientRedis
 from src.ws_manager import ws_client
-from src.config.setup import STT_01_URL, STT_02_URL
-
-STT_SERVERS = [
-    STT_01_URL,
-    STT_02_URL,
-]
-
-STT_ITER = itertools.cycle(STT_SERVERS)
-STT_LOCK = asyncio.Lock()
-
-
-async def set_sleep(client_id):
-    redis = ClientRedis(client_id)
-    await redis.set_is_sleep(True)
+from src.log import logger
 
 
 def clean_txt(txt: str) -> str:
@@ -57,7 +39,7 @@ async def stream_chat(client_id: str):
 
             message = clean_txt(message)
 
-            print("TTS: ", message)
+            logger.info(f"TTS: {message}")
             voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
             communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
             async for chunk in communicate.stream():
@@ -73,50 +55,6 @@ async def stream_chat(client_id: str):
         yield chunk_mp3
 
 
-async def pcm_to_wav_bytes(
-    client_id: str, pcm_buffer: bytearray, sample_rate: int = 16000
-) -> str:
-    """
-    Chuyển thành file wav và lưu file.
-    """
-    os.makedirs("src/data/audio_message", exist_ok=True)
-    path = f"src/data/audio_message/{client_id}.wav"
-    if not pcm_buffer:
-        print("Empty buffer, skipping.")
-        return ""
-
-    audio = np.frombuffer(pcm_buffer, dtype=np.int16)
-
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(
-        None, lambda: sf.write(path, audio, sample_rate, format="WAV")
-    )
-    return path
-
-
-async def stt_from_pcm(
-    client_id: str, pcm_buffer: bytearray, sample_rate: int = 16000
-) -> str:
-    if not pcm_buffer:
-        print("Empty audio buffer")
-        return ""
-
-    async with STT_LOCK:
-        STT_URL = next(STT_ITER)
-
-    path = await pcm_to_wav_bytes(client_id, pcm_buffer)
-    async with httpx.AsyncClient() as client:
-        with open(path, "rb") as f:
-            files = {"file": (f.name, f, "audio/wav")}
-            r = await client.post(STT_URL, files=files)
-
-    message = r.json()["text"]
-
-    if os.path.exists(path):
-        os.remove(path)
-    return message
-
-
 async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
     """
     Tách buffer_text thành từng câu, push vào Redis queue và trả về phần còn lại chưa được push.
@@ -128,7 +66,7 @@ async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
         for sent in matches:
             sentence = sent.strip()
             if sentence:
-                print("AI: " + sentence)
+                # logger.info("AI: " + sentence)
                 await redis.push_queue(queue_name, sentence)
         buffer_text = re.sub(r"^.*[.?!,]", "", buffer_text)
 
@@ -141,8 +79,8 @@ async def stream_message(graph, input_state, config, client_id):
     if not await redis.is_empty_queue("messages"):
         await redis.clear_queue("messages")
 
-    print("Started streaming TTS")
-    await ws_client.send_text(client_id, "stream_message")
+    logger.info("Started streaming TTS")
+    await ws_client.send_text(client_id, "stream_chat")
 
     buffer_text = ""
     music = False
@@ -176,7 +114,7 @@ async def stream_message(graph, input_state, config, client_id):
                         buffer_text, redis, "messages"
                     )
         elif data_type == "custom":
-            if chunk.strip() == "stream_music":
+            if chunk.strip().startswith("stream_music"):
                 music = True
             elif chunk.strip().startswith("volume"):
                 volume = chunk.strip().split(":")[1]
@@ -193,28 +131,18 @@ async def stream_message(graph, input_state, config, client_id):
             pass
 
     if is_sleep and buffer_text != "false":
-        print(f"End sleep from {client_id}")
+        logger.info(f"End sleep from {client_id}")
         await ws_client.send_text(client_id, "end_sleep")
         await redis.set_is_sleep(False)
         await process_buffer_text(buffer_text, redis, "messages")
     await redis.push_queue("messages", "__END__")
 
-    print("Finished streaming TTS")
+    logger.info("Finished streaming TTS")
     if music == True:
         await asyncio.sleep(7)
-        print("Started streaming music")
+        logger.info("Started streaming music")
         await ws_client.send_text(client_id, "stream_music")
 
 
-async def stream_music(file_path: str, chunk_size: int = 2024):
-    """
-    Stream file mp3 theo chunk bất đồng bộ và xóa file sau khi stream xong.
-    """
-    try:
-        with open(file_path, "rb") as f:
-            while chunk := await asyncio.to_thread(f.read, chunk_size):
-                yield chunk
-    finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        print("Finished streaming music")
+async def end_chat(client_id: str):
+    await ws_client.send_text(client_id, "end_chat")
