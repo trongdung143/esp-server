@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, Query
 from langchain_core.messages import HumanMessage
 
-from src.api.utils import stt_from_pcm, stream_message
+from src.api.utils import stt_from_pcm, stream_message, set_sleep
 from src.agents.workflow import graph
 from src.ws_manager import ws_client
 from src.log import logger
@@ -34,10 +34,13 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                     print(f"End from {client_id}")
                     text = await stt_from_pcm(client_id, pcm_buffer)
                     if (
-                        text
+                        text.strip()
                         == "Hãy subscribe cho kênh Ghiền Mì Gõ Để không bỏ lỡ những video hấp dẫn"
+                        or text
+                        == "Hãy đăng kí cho kênh lalaschool Để không bỏ lỡ những video hấp dẫn"
                     ):
                         text = "..."
+                    print(f"USER: {text}")
                     input_state = {
                         "client_id": client_id,
                         "messages": HumanMessage(content=text),
@@ -51,6 +54,9 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                     await stream_message(graph, input_state, config, client_id)
                     pcm_buffer.clear()
                     continue
+                elif msg == "start_sleep":
+                    print(f"Start sleep from {client_id}")
+                    await set_sleep(client_id)
 
             elif "bytes" in data:
                 chunk = data["bytes"]

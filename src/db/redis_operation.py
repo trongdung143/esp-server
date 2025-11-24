@@ -18,6 +18,12 @@ class ClientRedis:
     def _speaking_speed_key(self) -> str:
         return f"client:{self._client_id}:speaking_speed"
 
+    def _wake_word_key(self) -> str:
+        return f"client:{self._client_id}:wake_word"
+
+    def _is_sleep_key(self) -> str:
+        return f"client:{self._client_id}:is_sleep"
+
     def _pattern_all(self) -> str:
         return f"client:{self._client_id}:*"
 
@@ -69,3 +75,23 @@ class ClientRedis:
         keys = await self._r.keys(pattern)
         if keys:
             await self._r.delete(*keys)
+
+    async def set_wake_word(self):
+        await self._r.set(self._wake_word_key(), "hey friday or friday")
+
+    async def get_wake_word(self):
+        return await self._r.get(self._wake_word_key())
+
+    async def set_is_sleep(self, is_sleep: bool):
+        is_sleep_str = None
+        if is_sleep:
+            is_sleep_str = "true"
+        else:
+            is_sleep_str = "false"
+        await self._r.set(self._is_sleep_key(), is_sleep_str)
+
+    async def get_is_sleep(self):
+        is_sleep = await self._r.get(self._is_sleep_key())
+        if is_sleep == "true":
+            return True
+        return False

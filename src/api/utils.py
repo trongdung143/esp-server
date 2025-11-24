@@ -6,7 +6,7 @@ import random
 
 import httpx
 import asyncio
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import AIMessageChunk, AIMessage
 import numpy as np
 import edge_tts
 import soundfile as sf
@@ -22,6 +22,11 @@ STT_SERVERS = [
 
 STT_ITER = itertools.cycle(STT_SERVERS)
 STT_LOCK = asyncio.Lock()
+
+
+async def set_sleep(client_id):
+    redis = ClientRedis(client_id)
+    await redis.set_is_sleep(True)
 
 
 def clean_txt(txt: str) -> str:
@@ -73,9 +78,6 @@ async def pcm_to_wav_bytes(
 ) -> str:
     """
     Chuyển thành file wav và lưu file.
-
-    Returns:
-        Trả về đường dẫn file wav.
     """
     os.makedirs("src/data/audio_message", exist_ok=True)
     path = f"src/data/audio_message/{client_id}.wav"
@@ -109,7 +111,7 @@ async def stt_from_pcm(
             r = await client.post(STT_URL, files=files)
 
     message = r.json()["text"]
-    print(f"USER: {message}")
+
     if os.path.exists(path):
         os.remove(path)
     return message
@@ -135,6 +137,7 @@ async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
 
 async def stream_message(graph, input_state, config, client_id):
     redis = ClientRedis(client_id)
+    is_sleep = await redis.get_is_sleep()
     if not await redis.is_empty_queue("messages"):
         await redis.clear_queue("messages")
 
@@ -150,10 +153,14 @@ async def stream_message(graph, input_state, config, client_id):
         subgraphs=True,
     ):
         subgraph, data_type, chunk = event
-        if subgraph:
-            if data_type == "messages":
-                response, meta = chunk
-                langgraph_node = meta.get("langgraph_node")
+        if data_type == "messages":
+            response, meta = chunk
+            langgraph_node = meta.get("langgraph_node")
+            if is_sleep:
+                if isinstance(response, AIMessage):
+                    buffer_text = response.content.strip()
+
+            elif subgraph:
                 if langgraph_node != "tools" and isinstance(response, AIMessageChunk):
                     text = response.content
                     if isinstance(text, list):
@@ -164,27 +171,34 @@ async def stream_message(graph, input_state, config, client_id):
                     if not text.strip():
                         continue
                     buffer_text += text
+
                     buffer_text = await process_buffer_text(
                         buffer_text, redis, "messages"
                     )
-            elif data_type == "custom":
-                if chunk.strip() == "stream_music":
-                    music = True
-                elif chunk.strip().startswith("volume"):
-                    volume = chunk.strip().split(":")[1]
-                    await ws_client.send_text(client_id, f"volume:{volume}")
-                elif chunk.strip().startswith("music_name"):
-                    music_name = chunk.strip().split(":")[1]
-                    await ws_client.send_text(client_id, f"music_name:{music_name}")
-                elif chunk.strip().startswith("video_name"):
-                    video_name = chunk.strip().split(":")[1]
-                    await ws_client.send_text(client_id, f"music_name:{video_name}")
-                else:
-                    await redis.push_queue("messages", chunk)
-            elif data_type == "updates":
-                pass
+        elif data_type == "custom":
+            if chunk.strip() == "stream_music":
+                music = True
+            elif chunk.strip().startswith("volume"):
+                volume = chunk.strip().split(":")[1]
+                await ws_client.send_text(client_id, f"volume:{volume}")
+            elif chunk.strip().startswith("music_name"):
+                music_name = chunk.strip().split(":")[1]
+                await ws_client.send_text(client_id, f"music_name:{music_name}")
+            elif chunk.strip().startswith("video_name"):
+                video_name = chunk.strip().split(":")[1]
+                await ws_client.send_text(client_id, f"music_name:{video_name}")
+            else:
+                await redis.push_queue("messages", chunk)
+        elif data_type == "updates":
+            pass
 
+    if is_sleep and buffer_text != "false":
+        print(f"End sleep from {client_id}")
+        await ws_client.send_text(client_id, "end_sleep")
+        await redis.set_is_sleep(False)
+        await process_buffer_text(buffer_text, redis, "messages")
     await redis.push_queue("messages", "__END__")
+
     print("Finished streaming TTS")
     if music == True:
         await asyncio.sleep(7)
