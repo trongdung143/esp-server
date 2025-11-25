@@ -37,8 +37,6 @@ async def stream_chat(client_id: str):
                 await asyncio.sleep(0.05)
                 continue
 
-            message = clean_txt(message)
-
             logger.info(f"TTS: {message}")
             voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
             communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
