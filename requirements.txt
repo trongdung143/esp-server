@@ -22,3 +22,5 @@ psycopg2
 supabase
 faiss-cpu
 pypdf
+langchain-ollama
+elevenlabs

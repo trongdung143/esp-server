@@ -4,6 +4,7 @@ from langchain_core.tools.base import BaseTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langchain_ollama import ChatOllama
 
 from src.agents.state import State
 from src.config.setup import GOOGLE_API_KEY

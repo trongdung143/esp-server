@@ -1,10 +1,18 @@
 import os
 import shutil
+import io
 
 from faster_whisper import WhisperModel
 from langchain_google_genai.embeddings import GoogleGenerativeAIEmbeddings
+from elevenlabs.client import AsyncElevenLabs
 
 from src.config.setup import GOOGLE_API_KEY
+from src.config.setup import ELEVENLABS_API_KEY
+
+
+elevenlabs = AsyncElevenLabs(
+    api_key=ELEVENLABS_API_KEY,
+)
 
 embedding_model = GoogleGenerativeAIEmbeddings(
     model="models/gemini-embedding-001", google_api_key=GOOGLE_API_KEY

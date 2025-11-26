@@ -40,9 +40,9 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                 elif msg == "end_chat":
                     logger.info(f"End from {client_id}")
                     text = await stt_from_pcm(client_id, pcm_buffer)
-                    if text == "...":
-                        await end_chat(client_id)
-                        continue
+                    # if text == "...":
+                    #     await end_chat(client_id)
+                    #     continue
                     logger.info(f"USER: {text}")
                     input_state = {
                         "client_id": client_id,

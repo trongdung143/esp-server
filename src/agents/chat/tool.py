@@ -33,10 +33,10 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     writer("đang chuẩn bị phát nhạc")
     await download_audio(url, client_id)
 
-    writer(f"chuẩn bị mở {title} sau 3 giây")
+    # writer(f"chuẩn bị mở {title} sau 3 giây")
     writer(f"music_name:{remove_vietnamese_accents(title)}")
     writer("stream_music")
-    return f"đã mở"
+    return "..."  # f"đã mở"
 
 
 @tool
@@ -48,20 +48,21 @@ async def play_yt(query: str, runtime: ToolRuntime) -> str:
         query (str): Tên yêu cầu video nội dung.
 
     """
-    writer = runtime.stream_writer
-    client_id = runtime.state.get("client_id")
+    # writer = runtime.stream_writer
+    # client_id = runtime.state.get("client_id")
 
-    writer("Đang tìm kiếm")
-    title, url = await find_music(query)
+    # writer("Đang tìm kiếm")
+    # title, url = await find_music(query)
 
-    writer("Đang chuẩn bị phát")
-    await download_audio(url, client_id)
+    # writer("Đang chuẩn bị phát")
+    # await download_audio(url, client_id)
 
-    writer(f"Chuẩn bị mở '{title}' sau 3 giây")
-    writer(f"video_name:{remove_vietnamese_accents(title)}")
-    writer("stream_music")
+    # writer(f"Chuẩn bị mở '{title}' sau 3 giây")
+    # writer(f"video_name:{remove_vietnamese_accents(title)}")
+    # writer("stream_music")
 
-    return "Đã mở"
+    # return "Đã mở"
+    return
 
 
 @tool

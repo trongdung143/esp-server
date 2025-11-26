@@ -9,6 +9,7 @@ import edge_tts
 from src.db.redis_operation import ClientRedis
 from src.ws_manager import ws_client
 from src.log import logger
+from src.model import elevenlabs
 
 
 def clean_txt(txt: str) -> str:
@@ -28,6 +29,7 @@ async def stream_chat(client_id: str):
     chunk_mp3_queue = asyncio.Queue()
 
     async def producer():
+        start = False
         while True:
             message = await redis.pop_queue("messages")
             if message == "__END__":
@@ -38,11 +40,20 @@ async def stream_chat(client_id: str):
                 continue
 
             logger.info(f"TTS: {message}")
+            # async for chunk in elevenlabs.text_to_speech.convert(
+            #     text=message,
+            #     voice_id="FGY2WhTYpPnrIDTdsKH5",
+            #     model_id="eleven_flash_v2_5",
+            #     output_format="mp3_44100_128",
+            # ):
+            #     await chunk_mp3_queue.put(chunk)
             voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
             communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     await chunk_mp3_queue.put(chunk["data"])
+                    if not start:
+                        start = True
 
     asyncio.create_task(producer())
 
@@ -64,7 +75,7 @@ async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
         for sent in matches:
             sentence = sent.strip()
             if sentence:
-                # logger.info("AI: " + sentence)
+                logger.info(f"AI: {sentence}")
                 await redis.push_queue(queue_name, sentence)
         buffer_text = re.sub(r"^.*[.?!,]", "", buffer_text)
 
@@ -73,13 +84,12 @@ async def process_buffer_text(buffer_text: str, redis, queue_name="messages"):
 
 async def stream_message(graph, input_state, config, client_id):
     redis = ClientRedis(client_id)
-    is_sleep = await redis.get_is_sleep()
+    sleeping = await redis.get_is_sleep()
     if not await redis.is_empty_queue("messages"):
         await redis.clear_queue("messages")
-
     logger.info("Started streaming TTS")
     await ws_client.send_text(client_id, "stream_chat")
-
+    start_sleep = False
     buffer_text = ""
     music = False
     async for event in graph.astream(
@@ -92,7 +102,7 @@ async def stream_message(graph, input_state, config, client_id):
         if data_type == "messages":
             response, meta = chunk
             langgraph_node = meta.get("langgraph_node")
-            if is_sleep:
+            if sleeping:
                 if isinstance(response, AIMessage):
                     buffer_text = response.content.strip()
 
@@ -124,18 +134,21 @@ async def stream_message(graph, input_state, config, client_id):
                 video_name = chunk.strip().split(":")[1]
                 await ws_client.send_text(client_id, f"music_name:{video_name}")
             elif chunk.strip().startswith("start_sleep"):
-                await ws_client.send_text(client_id, f"start_sleep")
+                start_sleep = True
             else:
                 await redis.push_queue("messages", chunk)
         elif data_type == "updates":
             pass
 
-    if is_sleep and buffer_text != "false":
+    if sleeping and buffer_text != "false":
         logger.info(f"End sleep from {client_id}")
         await ws_client.send_text(client_id, "end_sleep")
         await redis.set_is_sleep(False)
         await process_buffer_text(buffer_text, redis, "messages")
     await redis.push_queue("messages", "__END__")
+
+    if start_sleep:
+        await ws_client.send_text(client_id, "start_sleep")
 
     logger.info("Finished streaming TTS")
     if music == True:
