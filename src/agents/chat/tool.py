@@ -34,8 +34,9 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     await download_audio(url, client_id)
 
     # writer(f"chuẩn bị mở {title} sau 3 giây")
-    writer(f"music_name:{remove_vietnamese_accents(title)}")
-    writer("stream_music")
+    writer(f"MUSIC_NAME:{remove_vietnamese_accents(title)}")
+    writer("STREAM_MUSIC")
+    writer("SING")
     return "..."  # f"đã mở"
 
 
@@ -73,10 +74,12 @@ def get_time(runtime: ToolRuntime) -> str:
     Returns:
         str: Thời gian hiện tại.
     """
+    writer = runtime.stream_writer
     now = datetime.now()
     hour = now.hour
     minute = now.minute
     second = now.second
+    writer("WATCH")
     return f"{hour} giờ {minute} phút"
 
 
@@ -113,7 +116,7 @@ async def sreach(query: str, runtime: ToolRuntime) -> str:
     """
 
     writer = runtime.stream_writer
-
+    writer("KEYBOARD")
     writer("đang tìm kiếm thông tin")
     response = await sreacher.search(
         query=query, include_raw_content="text", max_results=3
@@ -123,6 +126,7 @@ async def sreach(query: str, runtime: ToolRuntime) -> str:
 
     for result in results:
         content += result.get("content") + "\n\n"
+    writer("READ")
     return content
 
 
@@ -140,13 +144,13 @@ async def set_volume(volume: str, runtime: ToolRuntime) -> str:
     redis = ClientRedis(client_id)
 
     volume_val = await redis.get_volume()
-    if volume.strip() == "up":
+    if volume.strip() == "up" and volume_val + 5 <= 20:
         await redis.set_volume(volume_val + 5)
-        writer(f"volume:{volume_val + 5}")
+        writer(f"VOLUME:{volume_val + 5}")
         return "đã nói to hơn."
-    else:
+    elif volume.strip() == "down" and volume_val - 5 >= 0:
         await redis.set_volume(volume_val - 5)
-        writer(f"volume:{volume_val - 5}")
+        writer(f"VOLUME:{volume_val - 5}")
         return "đã nói nhỏ hơn."
 
 
@@ -168,13 +172,13 @@ async def rag(query: str, pdf_id: str, runtime: ToolRuntime) -> str:
     writer = runtime.stream_writer
     agent = BaseAgent("rag", None, None)
     chain = prompt_rag | agent.get_model()
-
+    writer("KEYBOARD")
     path = await supabase.download_pdf(pdf_id.strip())
 
     if path is None:
         writer("đã có lỗi khi lấy tài liệu")
         return "đã có lỗi"
-
+    writer("READ")
     context = await read_content(path, query)
     if context is None:
         writer("đã có lỗi khi đọc tài liệu")
@@ -199,6 +203,7 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
     """
     client_id = runtime.state.get("client_id")
     writer = runtime.stream_writer
+    writer("KEYBOARD")
     writer("đang tìm tài liệu")
     supabase = ClientSupaBase(client_id)
     summaries = await supabase.get_list_summary_pdf()
@@ -213,6 +218,7 @@ async def get_list_summary_pdf(runtime: ToolRuntime):
         content += (
             f"id: {pdf_id}\nthời gian tải lên: {str_time}\ntóm tắt: {summary}\n\n"
         )
+    writer("READ")
     return content
 
 
@@ -222,7 +228,7 @@ async def set_sleep(runtime: ToolRuntime):
     client_id = runtime.state.get("client_id")
     redis = ClientRedis(client_id)
     writer = runtime.stream_writer
-    writer("start_sleep")
+    writer("START_SLEEP")
     await redis.set_is_sleep(True)
     return "đã bật chế độ ngủ"
 

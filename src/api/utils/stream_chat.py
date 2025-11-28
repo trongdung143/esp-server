@@ -88,7 +88,8 @@ async def stream_message(graph, input_state, config, client_id):
     if not await redis.is_empty_queue("messages"):
         await redis.clear_queue("messages")
     logger.info("Started streaming TTS")
-    await ws_client.send_text(client_id, "stream_chat")
+    await ws_client.send_text(client_id, "STREAM_CHAT")
+    first = False
     start_sleep = False
     buffer_text = ""
     music = False
@@ -121,20 +122,38 @@ async def stream_message(graph, input_state, config, client_id):
                     buffer_text = await process_buffer_text(
                         buffer_text, redis, "messages"
                     )
+
         elif data_type == "custom":
-            if chunk.strip().startswith("stream_music"):
+            if chunk.strip().startswith("STREAM_MUSIC"):
                 music = True
-            elif chunk.strip().startswith("volume"):
+
+            elif chunk.strip().startswith("VOLUME"):
                 volume = chunk.strip().split(":")[1]
-                await ws_client.send_text(client_id, f"volume:{volume}")
-            elif chunk.strip().startswith("music_name"):
+                await ws_client.send_text(client_id, f"VOLUME:{volume}")
+
+            elif chunk.strip().startswith("MUSIC_NAME"):
                 music_name = chunk.strip().split(":")[1]
-                await ws_client.send_text(client_id, f"music_name:{music_name}")
-            elif chunk.strip().startswith("video_name"):
+                await ws_client.send_text(client_id, f"MUSIC_NAME:{music_name}")
+
+            elif chunk.strip().startswith("VIDEO_NAME"):
                 video_name = chunk.strip().split(":")[1]
-                await ws_client.send_text(client_id, f"music_name:{video_name}")
-            elif chunk.strip().startswith("start_sleep"):
+                await ws_client.send_text(client_id, f"VIDEO_NAME:{video_name}")
+
+            elif chunk.strip().startswith("START_SLEEP"):
                 start_sleep = True
+
+            elif chunk.strip().startswith("WATCH"):
+                await ws_client.send_text(client_id, "WATCH")
+
+            elif chunk.strip().startswith("SING"):
+                await ws_client.send_text(client_id, "SING")
+
+            elif chunk.strip().startswith("READ"):
+                await ws_client.send_text(client_id, "READ")
+
+            elif chunk.strip().startswith("KEYBOARD"):
+                await ws_client.send_text(client_id, "KEYBOARD")
+
             else:
                 await redis.push_queue("messages", chunk)
         elif data_type == "updates":
@@ -142,20 +161,21 @@ async def stream_message(graph, input_state, config, client_id):
 
     if sleeping and buffer_text != "false":
         logger.info(f"End sleep from {client_id}")
-        await ws_client.send_text(client_id, "end_sleep")
+        await ws_client.send_text(client_id, "END_SLEEP")
         await redis.set_is_sleep(False)
         await process_buffer_text(buffer_text, redis, "messages")
+        logger.info("Started streaming TTS")
     await redis.push_queue("messages", "__END__")
 
     if start_sleep:
-        await ws_client.send_text(client_id, "start_sleep")
+        await ws_client.send_text(client_id, "START_SLEEP")
 
     logger.info("Finished streaming TTS")
     if music == True:
         await asyncio.sleep(7)
         logger.info("Started streaming music")
-        await ws_client.send_text(client_id, "stream_music")
+        await ws_client.send_text(client_id, "STREAM_MUSIC")
 
 
 async def end_chat(client_id: str):
-    await ws_client.send_text(client_id, "end_chat")
+    await ws_client.send_text(client_id, "END_CHAT")

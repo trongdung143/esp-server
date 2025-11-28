@@ -60,6 +60,8 @@ async def stt_from_pcm(
         "Cảm ơn các bạn đã xem video hấp dẫn",
         "Chào các bạn và hẹn gặp lại trong các video tiếp theo"
         "hãy đăng ký kênh để đăng ký để không bỏ lỡ những video mới nhé",
+        "Hãy đăng ký kênh để xem những video tiếp theo",
+        "Hẹn gặp lại ở các video tiếp theo",
     ]
     if message in error_messages or not message:
         return "..."

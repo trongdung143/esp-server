@@ -57,9 +57,15 @@ class ClientRedis:
 
     async def get_volume(self) -> int:
         volume = await self._r.get(self._volume_key())
+
         if volume is None:
             return 0
-        return int(volume)
+        volume = int(volume)
+        if volume < 0:
+            return 0
+        if volume > 20:
+            return 20
+        return volume
 
     async def set_speaking_speed(self, speed: int):
         await self._r.set(self._speaking_speed_key(), speed)

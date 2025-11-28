@@ -32,12 +32,12 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
             if "text" in data:
                 msg = data["text"].strip()
 
-                if msg.startswith("start_chat"):
+                if msg.startswith("START_CHAT"):
                     logger.info(f"Start from {client_id}")
                     pcm_buffer.clear()
                     continue
 
-                elif msg == "end_chat":
+                elif msg == "END_CHAT":
                     logger.info(f"End from {client_id}")
                     text = await stt_from_pcm(client_id, pcm_buffer)
                     # if text == "...":
@@ -57,7 +57,7 @@ async def chat_ep(websocket: WebSocket, client_id: str = Query(...)):
                     await stream_message(graph, input_state, config, client_id)
                     pcm_buffer.clear()
                     continue
-                elif msg == "start_sleep":
+                elif msg == "START_SLEEP":
                     logger.info(f"Start sleep from {client_id}")
                     await set_sleep(client_id)
 
