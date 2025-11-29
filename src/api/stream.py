@@ -9,8 +9,8 @@ router = APIRouter()
 
 
 @router.get("/stream_music")
-async def stream_music_ep(client_id: str):
-    file_path = f"src/data/music/{client_id}.mp3"
+async def stream_music_ep(music_id: str):
+    file_path = f"src/data/music/{music_id}.mp3"
     return StreamingResponse(stream_music(file_path), media_type="audio/mpeg")
 
 

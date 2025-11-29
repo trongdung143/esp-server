@@ -1,5 +1,6 @@
 from langchain.tools import tool, ToolRuntime
 from datetime import datetime
+import os
 
 from src.db.redis_operation import ClientRedis
 from src.agents.base import BaseAgent
@@ -24,18 +25,21 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
         music_name (str): Tên bài hát cần phát.
 
     """
+    music_data_path = "src/data/music"
     writer = runtime.stream_writer
     client_id = runtime.state.get("client_id")
 
     writer("đang tìm nhạc")
-    title, url = await find_music(music_name)
+    title, url, music_id = await find_music(music_name)
 
     writer("đang chuẩn bị phát nhạc")
-    await download_audio(url, client_id)
+    music_path = f"{music_data_path}"/"{music_id}.mp3"
+    if not os.path.exists(music_path):
+        await download_audio(url,  music_id)
 
     # writer(f"chuẩn bị mở {title} sau 3 giây")
     writer(f"MUSIC_NAME:{remove_vietnamese_accents(title)}")
-    writer("STREAM_MUSIC")
+    writer(f"STREAM_MUSIC:{music_id}")
     writer("SING")
     return "..."  # f"đã mở"
 

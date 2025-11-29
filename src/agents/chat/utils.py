@@ -51,15 +51,15 @@ async def find_music(music_name: str) -> tuple[str, str]:
     video_title = video["snippet"]["title"]
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-    return video_title, video_url
+    return video_title, video_url, video_id
 
 
-async def download_audio(url: str, client_id: str, bitrate: str = "128") -> str:
+async def download_audio(url: str, music_id: str, bitrate: str = "128") -> str:
     """
     Tải audio từ YouTube về file và lưu.
     """
     force_ipv4()
-    save_path = f"src/data/music/{client_id}"
+    save_path = f"src/data/music/{music_id}"
     os.makedirs("src/data/music", exist_ok=True)
     ytdl_opts = {
         "format": "bestaudio[ext=webm][abr<=64]/bestaudio/best",
@@ -81,7 +81,6 @@ async def download_audio(url: str, client_id: str, bitrate: str = "128") -> str:
             ydl.download([url])
 
     await asyncio.to_thread(_download)
-    return save_path
 
 
 async def read_content(path: str, query: str) -> str | None:
