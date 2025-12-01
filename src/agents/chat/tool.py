@@ -33,9 +33,9 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     title, url, music_id = await find_music(music_name)
 
     writer("đang chuẩn bị phát nhạc")
-    music_path = f"{music_data_path}"/"{music_id}.mp3"
+    music_path = f"{music_data_path}/{music_id}.mp3"
     if not os.path.exists(music_path):
-        await download_audio(url,  music_id)
+        await download_audio(url, music_id)
 
     # writer(f"chuẩn bị mở {title} sau 3 giây")
     writer(f"MUSIC_NAME:{remove_vietnamese_accents(title)}")

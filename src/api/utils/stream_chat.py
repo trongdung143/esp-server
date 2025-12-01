@@ -29,7 +29,7 @@ async def stream_chat(client_id: str):
     chunk_mp3_queue = asyncio.Queue()
 
     async def producer():
-        start = False
+        # start = False
         while True:
             message = await redis.pop_queue("messages")
             if message == "__END__":
@@ -52,8 +52,6 @@ async def stream_chat(client_id: str):
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
                     await chunk_mp3_queue.put(chunk["data"])
-                    if not start:
-                        start = True
 
     asyncio.create_task(producer())
 
@@ -93,6 +91,7 @@ async def stream_message(graph, input_state, config, client_id):
     start_sleep = False
     buffer_text = ""
     music = False
+    music_id = ""
     async for event in graph.astream(
         input=input_state,
         config=config,
@@ -126,6 +125,7 @@ async def stream_message(graph, input_state, config, client_id):
         elif data_type == "custom":
             if chunk.strip().startswith("STREAM_MUSIC"):
                 music = True
+                music_id = chunk.strip().split(":")[1]
 
             elif chunk.strip().startswith("VOLUME"):
                 volume = chunk.strip().split(":")[1]
@@ -172,9 +172,9 @@ async def stream_message(graph, input_state, config, client_id):
 
     logger.info("Finished streaming TTS")
     if music == True:
-        await asyncio.sleep(7)
+        await asyncio.sleep(4)
         logger.info("Started streaming music")
-        await ws_client.send_text(client_id, "STREAM_MUSIC")
+        await ws_client.send_text(client_id, f"STREAM_MUSIC:{music_id}")
 
 
 async def end_chat(client_id: str):
