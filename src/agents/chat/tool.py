@@ -39,7 +39,7 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
 
     # writer(f"chuẩn bị mở {title} sau 3 giây")
     writer(f"MUSIC_NAME:{remove_vietnamese_accents(title)}")
-    writer(f"STREAM_MUSIC:{music_id}")
+    writer(f"READY_MUSIC:{music_id}")
     writer("SING")
     return "..."  # f"đã mở"
 
@@ -64,7 +64,7 @@ async def play_yt(query: str, runtime: ToolRuntime) -> str:
 
     # writer(f"Chuẩn bị mở '{title}' sau 3 giây")
     # writer(f"video_name:{remove_vietnamese_accents(title)}")
-    # writer("stream_music")
+    # writer("READY_MUSIC")
 
     # return "Đã mở"
     return

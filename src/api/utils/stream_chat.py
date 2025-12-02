@@ -29,7 +29,7 @@ async def stream_chat(client_id: str):
     chunk_mp3_queue = asyncio.Queue()
 
     async def producer():
-        # start = False
+        start = False
         while True:
             message = await redis.pop_queue("messages")
             if message == "__END__":
@@ -51,6 +51,9 @@ async def stream_chat(client_id: str):
             communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
+                    if not start:
+                        start = True
+                        await ws_client.send_text(client_id, "START_STREAM_CHAT")
                     await chunk_mp3_queue.put(chunk["data"])
 
     asyncio.create_task(producer())
@@ -86,8 +89,7 @@ async def stream_message(graph, input_state, config, client_id):
     if not await redis.is_empty_queue("messages"):
         await redis.clear_queue("messages")
     logger.info("Started streaming TTS")
-    await ws_client.send_text(client_id, "STREAM_CHAT")
-    first = False
+    await ws_client.send_text(client_id, "READY_CHAT")
     start_sleep = False
     buffer_text = ""
     music = False
@@ -123,7 +125,7 @@ async def stream_message(graph, input_state, config, client_id):
                     )
 
         elif data_type == "custom":
-            if chunk.strip().startswith("STREAM_MUSIC"):
+            if chunk.strip().startswith("READY_MUSIC"):
                 music = True
                 music_id = chunk.strip().split(":")[1]
 
@@ -172,9 +174,8 @@ async def stream_message(graph, input_state, config, client_id):
 
     logger.info("Finished streaming TTS")
     if music == True:
-        await asyncio.sleep(4)
         logger.info("Started streaming music")
-        await ws_client.send_text(client_id, f"STREAM_MUSIC:{music_id}")
+        await ws_client.send_text(client_id, f"READY_MUSIC:{music_id}")
 
 
 async def end_chat(client_id: str):
