@@ -12,7 +12,6 @@ async def stream_music(file_path: str, chunk_size: int = 2024):
         with open(file_path, "rb") as f:
             while chunk := await asyncio.to_thread(f.read, chunk_size):
                 yield chunk
-                print("ok")
     except RuntimeError as e:
         pass
     finally:
