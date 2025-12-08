@@ -44,7 +44,6 @@ class WebSocketManager:
             await redis.set_is_sleep(False)
             await redis.set_wake_word()
             await self.send_text(client_id, f"VOLUME:{volume}")
-            await self.send_text(client_id, "END_SLEEP")
         except Exception as e:
             logger.exception(e)
 

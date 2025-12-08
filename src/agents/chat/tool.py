@@ -41,7 +41,7 @@ async def play_music(music_name: str, runtime: ToolRuntime) -> str:
     writer(f"MUSIC_NAME:{remove_vietnamese_accents(title)}")
     writer(f"READY_MUSIC:{music_id}")
     writer("SING")
-    return "..."  # f"đã mở"
+    return f"đã mở {title}"  # f"đã mở"
 
 
 @tool
