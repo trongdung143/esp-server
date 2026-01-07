@@ -42,4 +42,4 @@ workflow.add_conditional_edges(
 workflow.add_edge("chat", "end")
 workflow.add_edge("check_wake_word", "end")
 
-graph = workflow.compile(checkpointer=MemorySaver())
+graph = workflow.compile()  # checkpointer=MemorySaver())

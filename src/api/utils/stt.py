@@ -42,12 +42,13 @@ async def stt_from_pcm(
 
     audio_np = np.frombuffer(pcm_buffer, dtype=np.int16).astype(np.float16) / 32768.0
 
-    async with httpx.AsyncClient() as client:
-        r = await client.post(
-            STT_URL,
-            content=audio_np.tobytes(),
-            headers={"Content-Type": "application/octet-stream"},
-        )
+    # thực hiện gọi dịch vụ STT hoặc thay thế bằng mô hình STT cục bộ
+    # async with httpx.AsyncClient() as client:
+    #     r = await client.post(
+    #         STT_URL,
+    #         content=audio_np.tobytes(),
+    #         headers={"Content-Type": "application/octet-stream"},
+    #     )
 
     message = r.json().get("text", "").strip()
 

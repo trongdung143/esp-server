@@ -24,3 +24,4 @@ faiss-cpu
 pypdf
 langchain-ollama
 elevenlabs
+langgraph-cli[inmem]

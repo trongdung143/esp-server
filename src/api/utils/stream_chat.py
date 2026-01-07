@@ -40,6 +40,7 @@ async def stream_chat(client_id: str):
                 continue
 
             logger.info(f"TTS: {message}")
+            # thay thế đoạn dưới bằng dịch vụ TTS bạn muốn sử dụng
             # async for chunk in elevenlabs.text_to_speech.convert(
             #     text=message,
             #     voice_id="FGY2WhTYpPnrIDTdsKH5",
@@ -47,14 +48,14 @@ async def stream_chat(client_id: str):
             #     output_format="mp3_44100_128",
             # ):
             #     await chunk_mp3_queue.put(chunk)
-            voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
-            communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    if not start:
-                        start = True
-                        await ws_client.send_text(client_id, "START_STREAM_CHAT")
-                    await chunk_mp3_queue.put(chunk["data"])
+            # voice = "vi-VN-HoaiMyNeural" if language == "vi" else "en-US-AriaNeural"
+            # communicate = edge_tts.Communicate(message, voice, volume="+0%", rate=speed)
+            # async for chunk in communicate.stream():
+            #     if chunk["type"] == "audio":
+            #         if not start:
+            #             start = True
+            #             await ws_client.send_text(client_id, "START_STREAM_CHAT")
+            #         await chunk_mp3_queue.put(chunk["data"])
 
     asyncio.create_task(producer())
 
