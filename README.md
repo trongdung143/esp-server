@@ -51,30 +51,24 @@ pip install -r requirements.txt
 Tạo file `.env` trong thư mục gốc với các biến sau:
 
 ```env
-# API Keys
-GOOGLE_API_KEY=your_google_api_key
-TAVILY_API_KEY=your_tavily_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key (tùy chọn)
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/chatbot_db
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_key
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# Server
-HOST=0.0.0.0
-PORT=8000
-DEBUG=True
+GOOGLE_API_KEY=
+TAVILY_API_KEY=
+REDIS_HOST=
+REDIS_PASSWORD=
+HUGGINGFACE_HUB_TOKEN=
+SUPABASE_HOST=
+SUPABASE_PORT=
+SUPABASE_DATABASE=
+SUPABASE_USER=
+SUPABASE_PASSWORD=
+SUPABASE_URL=
+SUPABASE_KEY=
+ELEVENLABS_API_KEY=
 ```
 
 ### 5. Khởi tạo Database
-```bash
-# Tạo bảng và cấu trúc database (nếu cần)
-# Chi tiết xem trong src/db/connection.py
-```
+Tạo db ỏ trên supabase
+![alt text](image.png)
 
 ## 📁 Cấu trúc dự án
 
