@@ -67,7 +67,7 @@ ELEVENLABS_API_KEY=
 ```
 
 ### 5. Khởi tạo Database
-Tạo db ỏ trên supabase
+Tạo db trên supabase
 ![alt text](image.png)
 
 ## 📁 Cấu trúc dự án
